@@ -5,10 +5,21 @@
   "engines": {
     "node": ">= 7.6.0"
   },
+  "now": {
+    "alias": "cool",
+    "env": {
+      "AWS_ACCESS_KEY_ID": "@aws_access_key_id",
+      "AWS_SECRET_ACCESS_KEY": "@aws_secret_access_key",
+      "MONGODB_URI": "@mongodb_uri",
+      "S3_BUCKET_NAME": "@s3_bucket_name",
+      "SECRET": "@secret"
+    }
+  },
   "scripts": {
     "prod": "node ./start.js",
     "watch": "nodemon ./start.js --ignore public/",
-    "start": "node ./start.js",
+    "start": "NODE_ENV=production node ./start.js",
+    "startOld": "node ./start.js",
     "startold": "concurrently \"npm run watch\" \"npm run assets\" --names \"💻,📦\" --prefix name",
     "assets": "webpack -w --display-max-modules 0",
     "sample": "node ./data/load-sample-data.js",

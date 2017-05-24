@@ -5,11 +5,10 @@ const jwt = require('jwt-simple')
 const moment = require('moment')
 const Tokens = require('csrf')
 
-function tokenForUser(user, req) {
+function tokenForUser(user, csrf) {
   // const timestamp = moment().toDate().getTime()
   const timestamp = moment()
   const exp = moment(timestamp).add(30, 'm')
-  const tokens = new Tokens()
 
   // first arg is the info we want encrypted
   // 2nd arg is the secret we want to encode with
@@ -17,10 +16,7 @@ function tokenForUser(user, req) {
     {
       // subject - who is this token about -jwt standard
       sub: user._id,
-      email: user.email,
-      name: user.name,
-      gravatar: user.gravatar,
-      csrf: tokens.create(process.env.SECRET),
+      csrf: csrf,
       iat: timestamp // issue at time
     },
     process.env.SECRET
@@ -142,7 +138,10 @@ exports.signin = function(req, res, next) {
   //   expire: new Date() + 9999
   // })
   // res.send({ token: 'cookie set' })
-  const token = tokenForUser(req.user, req)
+  const tokens = new Tokens()
+  const csrf = tokens.create(process.env.SECRET)
+
+  const token = tokenForUser(req.user, csrf)
   // res.cookie('jwtServer', token, {
   //   expire: new Date() + 9999,
   //   httpOnly: true
@@ -157,11 +156,28 @@ exports.signin = function(req, res, next) {
   res.cookie('jwt', token, {
     httpOnly: true
   })
+  res.cookie('_CSRF', csrf, {
+    httpOnly: true
+  })
   // res.cookie('remember', '1', { path: '/', expires: exdate, httpOnly: true })
   // res.writeHead(200, {
   //   'Content-Type': 'text/plain',
   //   'Set-Cookie': ['type=ninja', 'language=javascript']
   // })
   // res.end('ok')
-  res.send({ token: token })
+
+  res.send({
+    email: req.user.email,
+    name: req.user.name,
+    gravatar: req.user.gravatar
+  })
+}
+
+// On sign up - encode user with JWT and give the JWT back on response
+exports.signout = function(req, res, next) {
+  //User has already been authed - just need to give them a token
+  console.log('sign out')
+  res.clearCookie('_CSRF')
+  res.clearCookie('jwt')
+  res.send({ status: 'signedOUt' })
 }

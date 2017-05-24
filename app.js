@@ -29,6 +29,7 @@ app.use(cookieParser())
 
 var originsWhitelist = [
   'http://localhost:3000', //this is my front-end url for development
+  'http://localhost:7777', //this is my front-end url for development
   'http://www.myproductionurl.com'
 ]
 var corsOptions = {
@@ -39,7 +40,7 @@ var corsOptions = {
   credentials: true
 }
 //here is the magic
-app.use(cors(corsOptions)) // cors is a middleware for express
+// app.use(cors(corsOptions)) // cors is a middleware for express
 
 // REMOVE
 // serves up static files from the public folder. Anything in public/ will just be served up as the file it is
@@ -105,6 +106,15 @@ app.use(expressValidator())
 //REMOVE
 // After allllll that above middleware, we finally handle our own routes!
 app.use('/', routes)
+
+// API INDEX
+// app.get('/', (req, res) => {
+//   res.send('no access')
+//   // res.send({
+//   //   text:'Hey! It works!'
+//   // });
+//   // res.render('layout')
+// })
 
 // If that above routes didnt work, we 404 them and forward to error handler
 // app.use(errorHandlers.notFound)

@@ -59,15 +59,48 @@ const localLogin = new LocalStrategy(localOptions, function(
     The JWT uses our secret word to decode the token at a later point in time to login.
 */
 // Setup Options
+const cookieExtractor = function(req) {
+  var token = null
+  if (req && req.cookies) {
+    token = req.cookies['jwt']
+  }
+  return token
+}
+const extractCSRFCookie = req => {
+  if (!req.headers.cookie) {
+    return undefined
+  }
+  const csrfCookie = req.headers.cookie
+    .split(';')
+    .find(c => c.trim().startsWith('_CSRF='))
+  if (!csrfCookie) {
+    return undefined
+  }
+  const csrf = csrfCookie.split('=')[1]
+  return csrf
+}
 const jwtOptions = {
-  jwtFromRequest: ExtractJwt.fromHeader('authorization'),
-  secretOrKey: process.env.SECRET
+  jwtFromRequest: cookieExtractor,
+  secretOrKey: process.env.SECRET,
+  passReqToCallback: true
 }
 
 // Create JWT Strategy
-const jwtLogin = new JwtStrategy(jwtOptions, function(payload, done) {
-  console.log('payload')
-  console.log(payload)
+const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
+  /*
+  2 cookies should be attached to the payload.
+  One cookie should be _CSRF
+  Second cookie should be the JWT
+  */
+
+  const csrf = extractCSRFCookie(request)
+
+  if (csrf !== payload.csrf) {
+    const error = {
+      message: 'Invalid User'
+    }
+    return done(error, false)
+  }
 
   // this 2nd function(cb) above gets called when someone tries to log in
   // Payload => { sub: user.id, iat: timestamp }, this is the obj we sent into get encoded for the client frontend
