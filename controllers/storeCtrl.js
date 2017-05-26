@@ -65,8 +65,15 @@ exports.resize = async (req, res, next) => {
   }
 }
 
+function checkForTokenRefresh(data, token) {
+  return {
+    data,
+    token
+  }
+}
 exports.createStore = async (req, res) => {
-  console.log('create Store')
+  console.log('create Store body')
+  console.log(req)
   console.log(req.body)
 
   //ERROR TEST OBJECT
@@ -78,7 +85,8 @@ exports.createStore = async (req, res) => {
 
   try {
     const response = await store.save()
-    return res.send(response)
+    const update = checkForTokenRefresh(response, res.locals.token)
+    return res.send(update)
   } catch (e) {
     return res.status(422).send({ message: e.message })
   }

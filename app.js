@@ -25,6 +25,7 @@ const app = express()
 // view engine setup
 // app.set('views', path.join(__dirname, 'views')) // this is the folder where we keep our pug files
 // app.set('view engine', 'pug') // we use the engine pug, mustache or EJS work great too
+// {secret:'somesecrettokenhere'}
 app.use(cookieParser())
 
 var originsWhitelist = [
@@ -105,16 +106,16 @@ app.use(expressValidator())
 
 //REMOVE
 // After allllll that above middleware, we finally handle our own routes!
-app.use('/', routes)
+app.use('/api', routes)
 
 // API INDEX
-// app.get('/', (req, res) => {
-//   res.send('no access')
-//   // res.send({
-//   //   text:'Hey! It works!'
-//   // });
-//   // res.render('layout')
-// })
+app.get('/', (req, res) => {
+  res.send('no access')
+  // res.send({
+  //   text:'Hey! It works!'
+  // });
+  // res.render('layout')
+})
 
 // If that above routes didnt work, we 404 them and forward to error handler
 // app.use(errorHandlers.notFound)

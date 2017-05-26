@@ -1,26 +1,38 @@
 const mongoose = require('mongoose')
 const User = mongoose.model('User')
 const promisify = require('es6-promisify')
-const jwt = require('jwt-simple')
-const moment = require('moment')
-const Tokens = require('csrf')
+const authUtils = require('../utils/authUtils')
 
-function tokenForUser(user, csrf) {
-  // const timestamp = moment().toDate().getTime()
-  const timestamp = moment()
-  const exp = moment(timestamp).add(30, 'm')
+exports.refreshTokens = async (req, res, next) => {
+  console.log('Start refreshToken function')
+  console.log(req.authInfo.refresh.token)
 
-  // first arg is the info we want encrypted
-  // 2nd arg is the secret we want to encode with
-  return jwt.encode(
-    {
-      // subject - who is this token about -jwt standard
-      sub: user._id,
-      csrf: csrf,
-      iat: timestamp // issue at time
-    },
-    process.env.SECRET
-  )
+  // no refresh needed move on to next middleware
+  if (!req.authInfo.refresh.token) {
+    next()
+    return
+  }
+
+  // Clear current cookies
+  res.clearCookie('_CSRF')
+  res.clearCookie('jwt')
+
+  // Create new tokens
+  const csrf = authUtils.createUserToken__CSRF()
+  const token = authUtils.createUserToken__JWT(req.user, csrf)
+
+  // Create new cookies and attach to res
+  res.cookie('jwt', token, {
+    httpOnly: true
+  })
+  res.cookie('_CSRF', csrf, {
+    httpOnly: true
+  })
+
+  res.locals.token = token
+
+  // move to the next middleware
+  next()
 }
 
 exports.validateRegister = (req, res, next) => {
@@ -138,10 +150,8 @@ exports.signin = function(req, res, next) {
   //   expire: new Date() + 9999
   // })
   // res.send({ token: 'cookie set' })
-  const tokens = new Tokens()
-  const csrf = tokens.create(process.env.SECRET)
-
-  const token = tokenForUser(req.user, csrf)
+  const csrf = authUtils.createUserToken__CSRF()
+  const token = authUtils.createUserToken__JWT(req.user, csrf)
   // res.cookie('jwtServer', token, {
   //   expire: new Date() + 9999,
   //   httpOnly: true
@@ -149,8 +159,8 @@ exports.signin = function(req, res, next) {
   // res.writeHead(200, { 'Content-Type': 'text/plain' })
   // res.send({ token: tokenForUser(req.user) })
 
-  var exdate = new Date()
-  exdate.setDate(exdate.getDate() + 10)
+  // var exdate = new Date()
+  // exdate.setDate(exdate.getDate() + 10)
   // res.setHeader('Access-Control-Allow-Origin', true)
   // res.setHeader('Set-Cookie', ['type=ninja', 'language=javascript'])
   res.cookie('jwt', token, {
@@ -166,11 +176,13 @@ exports.signin = function(req, res, next) {
   // })
   // res.end('ok')
 
-  res.send({
-    email: req.user.email,
-    name: req.user.name,
-    gravatar: req.user.gravatar
-  })
+  // res.send({
+  //   email: req.user.email,
+  //   name: req.user.name,
+  //   gravatar: req.user.gravatar
+  // })
+
+  res.send({ token: token })
 }
 
 // On sign up - encode user with JWT and give the JWT back on response

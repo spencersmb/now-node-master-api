@@ -10,14 +10,20 @@ const requireSignIn = passport.authenticate('local', { session: false })
 
 // chain functions for uploading images -> data
 router.post(
-  '/api/add',
+  '/add',
   requireAuth,
+  userCtrl.refreshTokens,
   storeCtrl.upload,
   storeCtrl.resize,
   storeCtrl.createStore
 )
-router.get('/store/:slug', storeCtrl.getStore)
-router.get('/api/stores', storeCtrl.getStores)
+router.get(
+  '/store/:slug',
+  requireAuth,
+  userCtrl.refreshTokens,
+  storeCtrl.getStore
+)
+router.get('/stores', storeCtrl.getStores)
 router.get('/tags/:tag*?', storeCtrl.getTagsList)
 router.post(
   '/update',
@@ -33,7 +39,7 @@ router.post('/register', userCtrl.validateRegister, userCtrl.registerUser)
 
 // 1. Validate data through passport
 // 2. Log them in
-router.post('/api/signin', requireSignIn, userCtrl.signin)
+router.post('/signin', requireSignIn, userCtrl.signin)
 
 router.get('/signout', userCtrl.signout)
 

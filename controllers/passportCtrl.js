@@ -3,6 +3,7 @@ const ExtractJwt = require('passport-jwt').ExtractJwt
 const passport = require('passport')
 const LocalStrategy = require('passport-local')
 const User = require('../models/user')
+const authUtils = require('../utils/authUtils')
 /*
     SignIn ------ send email + pw ------ verify email + pw combo with Local Strategy ------ Return JWT Token
     Auth'D Request for a resource ----- verify token with JWT Strategy ------ Give them resource access
@@ -66,6 +67,7 @@ const cookieExtractor = function(req) {
   }
   return token
 }
+
 const extractCSRFCookie = req => {
   if (!req.headers.cookie) {
     return undefined
@@ -79,6 +81,7 @@ const extractCSRFCookie = req => {
   const csrf = csrfCookie.split('=')[1]
   return csrf
 }
+
 const jwtOptions = {
   jwtFromRequest: cookieExtractor,
   secretOrKey: process.env.SECRET,
@@ -90,11 +93,14 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
   /*
   2 cookies should be attached to the payload.
   One cookie should be _CSRF
-  Second cookie should be the JWT
+  Second cookie should be the JWT which is decoded and located in 'payload'
+  **** The goal is to match the _CSRF with the csrf key in the jwt ****
   */
+  console.log('request from Strategy')
+  console.log(request.body)
 
   const csrf = extractCSRFCookie(request)
-
+  // if No match - quit right away
   if (csrf !== payload.csrf) {
     const error = {
       message: 'Invalid User'
@@ -102,13 +108,45 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
     return done(error, false)
   }
 
-  // this 2nd function(cb) above gets called when someone tries to log in
-  // Payload => { sub: user.id, iat: timestamp }, this is the obj we sent into get encoded for the client frontend
-  // Done is a callback that we call when we have a successfull auth
+  /*
+  Check the exp key in the JWT if its:
+  A: Expired - If its expired passport JWTStrategy will automatically reject,
+  B: Within 15 min of expiring?
+  C: Doesn't need a refresh and is good
 
-  // Step 1: See if user id in the payload is in the DB
-  // IF true, call done
-  // Else call done without user obj
+  IF B - The second middleware called refreshTokens will look for 
+  the refresh object passed into it from this middleware and take care 
+  of refreshing the tokens and removing/creating new cookies for the response
+  only if a user is ALSO found in the DB
+  */
+  console.log('start refresh')
+
+  // will be 'expired', 'refresh', null
+  const refresh = {
+    token: authUtils.checkTokenForExp(payload.exp)
+  }
+
+  console.log('refesh result?', refresh)
+  // let refresh = {
+  //   token: false
+  // }
+  // authUtils.checkTokenForExp(payload.exp, token => {
+  //   switch (token) {
+  //     // if Expired - quit right away
+  //     case 'expired':
+  //       const error = {
+  //         message: 'Expired User'
+  //       }
+  //       return done(error, false)
+  //       break
+  //     case 'refresh':
+  //       refresh.token = true
+  //       break
+
+  //     default:
+  //     // do nothing
+  //   }
+  // })
 
   User.findById(payload.sub, function(err, user) {
     console.log('find user on auth')
@@ -120,9 +158,10 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
 
     if (user) {
       // null is no error, send our found user through
-      done(null, user)
+      done(null, user, { refresh })
     } else {
       //no error, no user
+      // no user found - so token doesnt matter anyways
       done(null, false)
     }
   })
