@@ -8,7 +8,9 @@ const passport = require('passport')
 const requireAuth = passport.authenticate('jwt', { session: false })
 const requireSignIn = passport.authenticate('local', { session: false })
 
-// chain functions for uploading images -> data
+// router.get('/refresh', userCtrl.updateUser)
+router.get('/refresh', requireAuth, userCtrl.refreshTokens, userCtrl.updateUser)
+
 router.post(
   '/add',
   requireAuth,

@@ -7,6 +7,9 @@ exports.refreshTokens = async (req, res, next) => {
   console.log('Start refreshToken function')
   console.log(req.authInfo.refresh.token)
 
+  console.log('cookies in header')
+  console.log(req.cookies)
+
   // no refresh needed move on to next middleware
   if (!req.authInfo.refresh.token) {
     next()
@@ -14,8 +17,8 @@ exports.refreshTokens = async (req, res, next) => {
   }
 
   // Clear current cookies
-  res.clearCookie('_CSRF')
-  res.clearCookie('jwt')
+  // res.clearCookie('_CSRF')
+  // res.clearCookie('jwt')
 
   // Create new tokens
   const csrf = authUtils.createUserToken__CSRF()
@@ -31,8 +34,19 @@ exports.refreshTokens = async (req, res, next) => {
 
   res.locals.token = token
 
+  console.log('cookies in res header')
+  console.log(res)
+
   // move to the next middleware
   next()
+}
+
+exports.updateUser = async (req, res, next) => {
+  const update = authUtils.checkForTokenRefresh(req.body, res.locals.token)
+  res.send(update)
+  // console.log('request')
+  // console.log(req.headers)
+  // res.send('worked')
 }
 
 exports.validateRegister = (req, res, next) => {

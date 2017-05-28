@@ -4,6 +4,7 @@ const ImageUploader = require('../utils/ImageUploader')
 const slug = require('slugs') //wordpress permalink?
 const multer = require('multer')
 const sharp = require('sharp')
+const authUtils = require('../utils/authUtils')
 
 // define where to store and what types are allowed
 const multerOptions = {
@@ -65,12 +66,6 @@ exports.resize = async (req, res, next) => {
   }
 }
 
-function checkForTokenRefresh(data, token) {
-  return {
-    data,
-    token
-  }
-}
 exports.createStore = async (req, res) => {
   console.log('create Store body')
   console.log(req)
@@ -80,12 +75,11 @@ exports.createStore = async (req, res) => {
   // const error = storeObj
   // error.name = ''
   // const store = new Store(error)
-
   const store = new Store(req.body)
 
   try {
     const response = await store.save()
-    const update = checkForTokenRefresh(response, res.locals.token)
+    const update = authUtils.checkForTokenRefresh(response, res.locals.token)
     return res.send(update)
   } catch (e) {
     return res.status(422).send({ message: e.message })

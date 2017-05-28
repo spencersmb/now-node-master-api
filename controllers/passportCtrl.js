@@ -98,6 +98,7 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
   */
   console.log('request from Strategy')
   console.log(request.body)
+  console.log(request)
 
   const csrf = extractCSRFCookie(request)
   // if No match - quit right away
