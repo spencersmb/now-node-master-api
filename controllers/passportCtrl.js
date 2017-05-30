@@ -96,9 +96,6 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
   Second cookie should be the JWT which is decoded and located in 'payload'
   **** The goal is to match the _CSRF with the csrf key in the jwt ****
   */
-  console.log('request from Strategy')
-  console.log(request.body)
-  console.log(request)
 
   const csrf = extractCSRFCookie(request)
   // if No match - quit right away
@@ -120,7 +117,6 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
   of refreshing the tokens and removing/creating new cookies for the response
   only if a user is ALSO found in the DB
   */
-  console.log('start refresh')
 
   // will be 'expired', 'refresh', null
   const refresh = {

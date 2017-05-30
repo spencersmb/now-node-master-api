@@ -7,18 +7,11 @@ exports.refreshTokens = async (req, res, next) => {
   console.log('Start refreshToken function')
   console.log(req.authInfo.refresh.token)
 
-  console.log('cookies in header')
-  console.log(req.cookies)
-
   // no refresh needed move on to next middleware
   if (!req.authInfo.refresh.token) {
     next()
     return
   }
-
-  // Clear current cookies
-  // res.clearCookie('_CSRF')
-  // res.clearCookie('jwt')
 
   // Create new tokens
   const csrf = authUtils.createUserToken__CSRF()
@@ -34,9 +27,6 @@ exports.refreshTokens = async (req, res, next) => {
 
   res.locals.token = token
 
-  console.log('cookies in res header')
-  console.log(res)
-
   // move to the next middleware
   next()
 }
@@ -44,9 +34,6 @@ exports.refreshTokens = async (req, res, next) => {
 exports.updateUser = async (req, res, next) => {
   const update = authUtils.checkForTokenRefresh(req.body, res.locals.token)
   res.send(update)
-  // console.log('request')
-  // console.log(req.headers)
-  // res.send('worked')
 }
 
 exports.validateRegister = (req, res, next) => {
@@ -154,52 +141,19 @@ exports.signin = function(req, res, next) {
   //User has already been authed - just need to give them a token
   console.log('signin!')
 
-  // we have access to the user with token because of the done() method supplied by passport in our strategies
-  // res.send({
-  //   token: tokenForUser(req.user)
-  // })
-  // res.setHeader('Set-Cookie', ['foo=bar'])
-  // res.cookie('remember', '1', { path: '/' })
-  // res.cookie('jwtServer', tokenForUser(req.user), {
-  //   expire: new Date() + 9999
-  // })
-  // res.send({ token: 'cookie set' })
   const csrf = authUtils.createUserToken__CSRF()
   const token = authUtils.createUserToken__JWT(req.user, csrf)
-  // res.cookie('jwtServer', token, {
-  //   expire: new Date() + 9999,
-  //   httpOnly: true
-  // })
-  // res.writeHead(200, { 'Content-Type': 'text/plain' })
-  // res.send({ token: tokenForUser(req.user) })
 
-  // var exdate = new Date()
-  // exdate.setDate(exdate.getDate() + 10)
-  // res.setHeader('Access-Control-Allow-Origin', true)
-  // res.setHeader('Set-Cookie', ['type=ninja', 'language=javascript'])
   res.cookie('jwt', token, {
     httpOnly: true
   })
   res.cookie('_CSRF', csrf, {
     httpOnly: true
   })
-  // res.cookie('remember', '1', { path: '/', expires: exdate, httpOnly: true })
-  // res.writeHead(200, {
-  //   'Content-Type': 'text/plain',
-  //   'Set-Cookie': ['type=ninja', 'language=javascript']
-  // })
-  // res.end('ok')
-
-  // res.send({
-  //   email: req.user.email,
-  //   name: req.user.name,
-  //   gravatar: req.user.gravatar
-  // })
 
   res.send({ token: token })
 }
 
-// On sign up - encode user with JWT and give the JWT back on response
 exports.signout = function(req, res, next) {
   //User has already been authed - just need to give them a token
   console.log('sign out')
