@@ -1,0 +1,8 @@
+{
+  "AWS_ACCESS_KEY_ID": "___",
+  "AWS_SECRET_ACCESS_KEY": "___",
+  "REGION": "___",
+  "S3_BUCKET": "___",
+  "MONGODB_URI": "mongodb://{username}:{password}.mlab.com:{port}/{slug}",
+  "SECRET": "___"
+}

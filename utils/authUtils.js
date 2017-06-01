@@ -1,12 +1,16 @@
 const jwt = require('jwt-simple')
 const moment = require('moment')
 const Tokens = require('csrf')
+const envConfig = require('../config/env-config')
 
 exports.checkTokenForExp = tokenExp => {
+  console.log('env vars')
+  console.log(envConfig)
+
   // let refresh = null
 
   const currentTime = moment().unix()
-  const refreshWindow = 15 // min
+  const refreshWindow = envConfig.variables.REFRESH_WINDOW // min
   const expired = tokenExp < currentTime // because time goes up
   const duration = tokenExp - currentTime
   const timeLeft = moment.duration(duration * 1000, 'milliseconds')
@@ -36,7 +40,7 @@ exports.checkTokenForExp = tokenExp => {
 exports.createUserToken__JWT = (user, csrf) => {
   // const timestamp = moment().toDate().getTime()
   const timestamp = moment()
-  const exp = moment(timestamp).add(17, 'm').unix()
+  const exp = moment(timestamp).add(10, 'm').unix()
 
   // first arg is the info we want encrypted
   // 2nd arg is the secret we want to encode with
