@@ -130,8 +130,18 @@ exports.registerUser = async (req, res, next) => {
         return next(err)
       }
 
+      const csrf = authUtils.createUserToken__CSRF()
+      const token = authUtils.createUserToken__JWT(user, csrf)
+
+      res.cookie('jwt', token, {
+        httpOnly: true
+      })
+      res.cookie('_CSRF', csrf, {
+        httpOnly: true
+      })
+
       // Respond to a request indicating the user was created
-      res.json({ token: tokenForUser(user) })
+      res.send({ token: token })
     })
   })
 }
