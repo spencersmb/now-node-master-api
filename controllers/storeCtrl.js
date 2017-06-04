@@ -113,7 +113,7 @@ exports.getStore = async (req, res) => {
 }
 
 exports.updateStore = async (req, res) => {
-  console.log('updateStore')
+  console.log('updateStore - photo?')
   console.log(req.body.photo)
 
   try {

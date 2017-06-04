@@ -40,7 +40,7 @@ exports.checkTokenForExp = tokenExp => {
 exports.createUserToken__JWT = (user, csrf) => {
   // const timestamp = moment().toDate().getTime()
   const timestamp = moment()
-  const exp = moment(timestamp).add(10, 'm').unix()
+  const exp = moment(timestamp).add(17, 'm').unix()
 
   // first arg is the info we want encrypted
   // 2nd arg is the secret we want to encode with
