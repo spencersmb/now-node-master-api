@@ -1,34 +1,129 @@
 const mongoose = require('mongoose')
 const User = mongoose.model('User')
+const RefreshToken = mongoose.model('RefreshToken')
+const Session = mongoose.model('Session')
 const promisify = require('es6-promisify')
 const authUtils = require('../utils/authUtils')
+const randToken = require('rand-token')
 
 exports.refreshTokens = async (req, res, next) => {
   console.log('Start refreshToken function')
-  console.log(req.authInfo.refresh.token)
+  // console.log(req.authInfo.refresh.token)
+  console.log(req.authInfo)
+  console.log(req.body)
+  const email = req.body.email
+  const rfsToken = req.body.rfs
 
-  // no refresh needed move on to next middleware
-  if (!req.authInfo.refresh.token) {
-    next()
-    return
-  }
+  // make sure user is valid
+  User.findOne({ email: email }, async function(err, existingUser) {
+    if (err) {
+      return next(err)
+    }
 
-  // Create new tokens
-  const csrf = authUtils.createUserToken__CSRF()
-  const token = authUtils.createUserToken__JWT(req.user, csrf)
+    if (!existingUser) {
+      authUtils.clearCookies(res)
+      res.status(401).send('Unauthorized')
+      return
+    }
 
-  // Create new cookies and attach to res
-  res.cookie('jwt', token, {
-    httpOnly: true
+    const refreshToken = randToken.uid(256)
+    const csrf = authUtils.createUserToken__CSRF()
+    const jwt = authUtils.createUserToken__JWT(existingUser, csrf, refreshToken)
+
+    const result = await Session.findOneAndUpdate(
+      { email: email, 'refreshTokens.token': rfsToken },
+      {
+        $set: { 'refreshTokens.$': new RefreshToken({ token: refreshToken }) },
+        new: true,
+        returnNewDocument: true
+      }
+    )
+
+    if (!result) {
+      authUtils.clearCookies(res)
+      res.status(401).send('Unauthorized')
+      return
+    }
+    console.log('new save')
+
+    authUtils.addTokenCookiesToResponse(jwt, csrf, res)
+
+    res.send({ token: jwt })
+
+    //user found look up session
+    // Session.findOne(
+    //   { email: email, 'refreshTokens.token': rfsToken },
+    //   async function(err, existingSession) {
+    //     if (err) {
+    //       console.log('error in session', err)
+
+    //       return next(err)
+    //     }
+
+    //     if (!existingSession) {
+    //       res.status(401).send('Unauthorized')
+    //       return
+    //     }
+
+    //     const refreshToken = randToken.uid(256)
+    //     const csrf = authUtils.createUserToken__CSRF()
+    //     const jwt = authUtils.createUserToken__JWT(
+    //       existingUser,
+    //       csrf,
+    //       refreshToken
+    //     )
+
+    //     const matchedSession = existingSession.refreshTokens.map(session => {
+    //       if (session.token === rfsToken) {
+    //         let newToken = new RefreshToken({ token: refreshToken })
+    //         return (session = newToken)
+    //       } else {
+    //         return session
+    //       }
+    //     })
+
+    //     existingSession.refreshTokens = matchedSession
+
+    //     const cb = await existingSession.save()
+
+    //     console.log('saved')
+
+    //     res.cookie('jwt', jwt, {
+    //       httpOnly: true,
+    //       maxAge: 7 * 24 * 3600000
+    //     })
+    //     res.cookie('_CSRF', csrf, {
+    //       httpOnly: true,
+    //       maxAge: 7 * 24 * 3600000
+    //     })
+
+    //     res.send({ token: jwt })
+    //   }
+    // )
   })
-  res.cookie('_CSRF', csrf, {
-    httpOnly: true
-  })
 
-  res.locals.token = token
+  // // no refresh needed move on to next middleware
+  // if (!req.authInfo.refresh.token) {
+  //   next()
+  //   return
+  // }
 
-  // move to the next middleware
-  next()
+  // // Create new tokens
+  // const csrf = authUtils.createUserToken__CSRF()
+  // const token = authUtils.createUserToken__JWT(req.user, csrf)
+
+  // // Create new cookies and attach to res
+  // res.cookie('jwt', token, {
+  //   httpOnly: true
+  // })
+  // res.cookie('_CSRF', csrf, {
+  //   httpOnly: true
+  // })
+
+  // res.locals.token = token
+
+  // // move to the next middleware
+  // next()
 }
 
 exports.updateUser = async (req, res, next) => {
@@ -100,8 +195,6 @@ exports.registerUser = async (req, res, next) => {
     console.log('Find user')
     // check for DB error first
     if (err) {
-      console.log('USER ERROR')
-
       return next(err)
     }
 
@@ -134,10 +227,12 @@ exports.registerUser = async (req, res, next) => {
       const token = authUtils.createUserToken__JWT(user, csrf)
 
       res.cookie('jwt', token, {
-        httpOnly: true
+        httpOnly: true,
+        maxAge: 7 * 24 * 3600000
       })
       res.cookie('_CSRF', csrf, {
-        httpOnly: true
+        httpOnly: true,
+        maxAge: 7 * 24 * 3600000
       })
 
       // Respond to a request indicating the user was created
@@ -146,28 +241,79 @@ exports.registerUser = async (req, res, next) => {
   })
 }
 
-// On sign up - encode user with JWT and give the JWT back on response
+// On sign up:
+// encode user in JWT
+// create JWT COOKIE in res
+// create CSRF COOKIE in res
+// Find if user has a session
+// If true add a new refreshToken to session
+// If false - create and add session in DB with refreshtoken
+// Send JWT response back to server
 exports.signin = function(req, res, next) {
   //User has already been authed - just need to give them a token
   console.log('signin!')
+  const email = req.user.email
 
+  const refreshToken = randToken.uid(256)
   const csrf = authUtils.createUserToken__CSRF()
-  const token = authUtils.createUserToken__JWT(req.user, csrf)
+  const jwt = authUtils.createUserToken__JWT(req.user, csrf, refreshToken)
 
-  res.cookie('jwt', token, {
-    httpOnly: true
+  res.cookie('jwt', jwt, {
+    httpOnly: true,
+    maxAge: 7 * 24 * 3600000
   })
   res.cookie('_CSRF', csrf, {
-    httpOnly: true
+    httpOnly: true,
+    maxAge: 7 * 24 * 3600000
   })
 
-  res.send({ token: token })
+  // find existing session
+  // if none found create new one
+  Session.findOne({ email: email }, function(err, existingSession) {
+    if (err) {
+      return next(err)
+    }
+
+    if (existingSession) {
+      const rfshToken = new RefreshToken({
+        token: refreshToken
+      })
+
+      existingSession.refreshTokens.push(rfshToken)
+      existingSession.save(function(err) {
+        if (err) {
+          return next(err)
+        }
+
+        res.send({ token: jwt })
+      })
+
+      return
+    }
+
+    const session = new Session({
+      email: email,
+      refreshTokens: [
+        {
+          token: refreshToken
+        }
+      ]
+    })
+
+    // Save new session to DB
+    session.save(function(err) {
+      if (err) {
+        return next(err)
+      }
+
+      res.send({ token: jwt })
+    })
+  })
 }
 
 exports.signout = function(req, res, next) {
   //User has already been authed - just need to give them a token
-  res.clearCookie('_CSRF')
-  res.clearCookie('jwt')
   console.log('sign out')
+  authUtils.clearCookies(res)
   res.send({ status: 'signedOUt' })
 }

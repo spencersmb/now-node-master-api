@@ -22,6 +22,8 @@ mongoose.connection.on('error', err => {
 // Import all models
 require('./models/store')
 require('./models/user')
+require('./models/rfsToken')
+require('./models/session')
 
 // READY?! Let's go!
 

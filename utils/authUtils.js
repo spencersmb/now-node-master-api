@@ -1,6 +1,6 @@
 const jwt = require('jwt-simple')
 const moment = require('moment')
-const Tokens = require('csrf')
+const CSRF = require('csrf')
 const envConfig = require('../config/env-config')
 
 exports.checkTokenForExp = tokenExp => {
@@ -37,10 +37,10 @@ exports.checkTokenForExp = tokenExp => {
   return false
 }
 
-exports.createUserToken__JWT = (user, csrf) => {
+exports.createUserToken__JWT = (user, csrf, refreshToken) => {
   // const timestamp = moment().toDate().getTime()
   const timestamp = moment()
-  const exp = moment(timestamp).add(17, 'm').unix()
+  const exp = moment(timestamp).add(30, 'm').unix()
 
   // first arg is the info we want encrypted
   // 2nd arg is the secret we want to encode with
@@ -51,6 +51,7 @@ exports.createUserToken__JWT = (user, csrf) => {
       email: user.email,
       name: user.name,
       csrf: csrf,
+      rfs: refreshToken,
       exp: exp,
       iat: timestamp // issue at time
     },
@@ -59,8 +60,8 @@ exports.createUserToken__JWT = (user, csrf) => {
 }
 
 exports.createUserToken__CSRF = () => {
-  const tokens = new Tokens()
-  return tokens.create(process.env.SECRET)
+  const _csrf = new CSRF()
+  return _csrf.create(process.env.SECRET)
 }
 
 exports.checkForTokenRefresh = (data = {}, token) => {
@@ -73,4 +74,21 @@ exports.checkForTokenRefresh = (data = {}, token) => {
     data,
     token
   }
+}
+
+exports.clearCookies = res => {
+  res.clearCookie('_CSRF')
+  res.clearCookie('jwt')
+}
+
+exports.addTokenCookiesToResponse = (jwt, csrf, res) => {
+  res.cookie('jwt', jwt, {
+    httpOnly: true,
+    maxAge: 7 * 24 * 3600000
+  })
+
+  res.cookie('_CSRF', csrf, {
+    httpOnly: true,
+    maxAge: 7 * 24 * 3600000
+  })
 }
