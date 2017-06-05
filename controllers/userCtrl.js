@@ -5,14 +5,25 @@ const Session = mongoose.model('Session')
 const promisify = require('es6-promisify')
 const authUtils = require('../utils/authUtils')
 const randToken = require('rand-token')
+const jwToken = require('jsonwebtoken')
 
 exports.refreshTokens = async (req, res, next) => {
   console.log('Start refreshToken function')
   // console.log(req.authInfo.refresh.token)
-  // console.log(req.authInfo)
+  // console.log(req.cookies.jwt)
+  const reqCSRF = req.cookies._CSRF
+  let decoded
+  try {
+    decoded = await jwToken.verify(req.cookies.jwt, process.env.SECRET, {
+      ignoreExpiration: true //handled by OAuth2 server implementation
+    })
+  } catch (e) {
+    console.log('JWT error')
+    res.status(401).send('Unauthorized')
+  }
   // console.log(req.body)
-  const email = req.body.email
-  const rfsToken = req.body.rfs
+  const email = decoded.email
+  const rfsToken = decoded.rfs
 
   // make sure user is valid
   User.findOne({ email: email }, async function(err, existingUser) {
@@ -26,36 +37,34 @@ exports.refreshTokens = async (req, res, next) => {
       return
     }
 
+    // insert check that CSRF matches
+    if (!authUtils.compareCSRFTokens(reqCSRF, decoded._CSRF)) {
+      res.status(401).send('Unauthorized')
+      return
+    }
+
+    const refreshToken = randToken.uid(256)
     const csrf = authUtils.createUserToken__CSRF()
-    const jwt = authUtils.createUserToken__JWT(existingUser, csrf, rfsToken)
+    const jwt = authUtils.createUserToken__JWT(existingUser, csrf, refreshToken)
 
-    // Check for user and the token
-    Session.findOne({ email: email, 'refreshTokens.token': rfsToken }, function(
-      err,
-      existingSession
-    ) {
-      if (err) {
-        console.log('error in session', err)
-        return next(err)
+    const result = await Session.findOneAndUpdate(
+      { email: email, 'refreshTokens.token': rfsToken },
+      {
+        $set: { 'refreshTokens.$': new RefreshToken({ token: refreshToken }) },
+        new: true,
+        returnNewDocument: true
       }
+    )
 
-      if (!existingSession) {
-        authUtils.clearCookies(res)
-        res.status(401).send('Unauthorized')
-        return
-      }
-      authUtils.addTokenCookiesToResponse(jwt, csrf, res)
-      res.send({ token: jwt })
-    })
+    if (!result) {
+      authUtils.clearCookies(res)
+      res.status(401).send('Unauthorized')
+      return
+    }
 
-    // const result = await Session.findOneAndUpdate(
-    //   { email: email, 'refreshTokens.token': rfsToken },
-    //   {
-    //     $set: { 'refreshTokens.$': new RefreshToken({ token: refreshToken }) },
-    //     new: true,
-    //     returnNewDocument: true
-    //   }
-    // )
+    authUtils.addTokenCookiesToResponse(jwt, csrf, res)
+
+    res.send({ token: jwt })
   })
 }
 
@@ -124,7 +133,7 @@ exports.registerUser = async (req, res, next) => {
   // // next()
 
   //step 2: see if a user with a given email exists
-  User.findOne({ email: email }, function(err, existingUser) {
+  User.findOne({ email: email }, async function(err, existingUser) {
     console.log('Find user')
     // check for DB error first
     if (err) {
@@ -139,6 +148,10 @@ exports.registerUser = async (req, res, next) => {
       res.status(422).send({ error: 'Email is in use' })
     }
 
+    const refreshToken = randToken.uid(256)
+    const csrf = authUtils.createUserToken__CSRF()
+    const token = authUtils.createUserToken__JWT(user, csrf)
+
     // create new user in memory
     // If a user with email does not exist, create and save user record
     const user = new User({
@@ -147,30 +160,42 @@ exports.registerUser = async (req, res, next) => {
       name: name
     })
 
+    const session = new Session({
+      email: email,
+      refreshTokens: [
+        {
+          token: refreshToken
+        }
+      ]
+    })
+
     // Save record to the DB
     // callback for when we get notified if user was saved or not
-    console.log(' being save user')
+    console.log(' begin saving user')
+    try {
+      await user.save()
+      await session.save()
+    } catch (err) {
+      return next(err)
+    }
 
-    user.save(function(err) {
-      if (err) {
-        return next(err)
-      }
+    authUtils.addTokenCookiesToResponse(jwt, csrf, res)
 
-      const csrf = authUtils.createUserToken__CSRF()
-      const token = authUtils.createUserToken__JWT(user, csrf)
+    res.send({ token: token })
 
-      res.cookie('jwt', token, {
-        httpOnly: true,
-        maxAge: 7 * 24 * 3600000
-      })
-      res.cookie('_CSRF', csrf, {
-        httpOnly: true,
-        maxAge: 7 * 24 * 3600000
-      })
+    // user.save(function(err) {
+    //   if (err) {
+    //     return next(err)
+    //   }
 
-      // Respond to a request indicating the user was created
-      res.send({ token: token })
-    })
+    //   const csrf = authUtils.createUserToken__CSRF()
+    //   const token = authUtils.createUserToken__JWT(user, csrf)
+
+    //   authUtils.addTokenCookiesToResponse(jwt, csrf, res)
+
+    //   // Respond to a request indicating the user was created
+    //   res.send({ token: token })
+    // })
   })
 }
 
@@ -191,14 +216,7 @@ exports.signin = function(req, res, next) {
   const csrf = authUtils.createUserToken__CSRF()
   const jwt = authUtils.createUserToken__JWT(req.user, csrf, refreshToken)
 
-  res.cookie('jwt', jwt, {
-    httpOnly: true,
-    maxAge: 7 * 24 * 3600000
-  })
-  res.cookie('_CSRF', csrf, {
-    httpOnly: true,
-    maxAge: 7 * 24 * 3600000
-  })
+  authUtils.addTokenCookiesToResponse(jwt, csrf, res)
 
   // find existing session
   // if none found create new one

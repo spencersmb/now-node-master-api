@@ -40,7 +40,7 @@ exports.checkTokenForExp = tokenExp => {
 exports.createUserToken__JWT = (user, csrf, refreshToken) => {
   // const timestamp = moment().toDate().getTime()
   const timestamp = moment()
-  const exp = moment(timestamp).add(30, 'm').unix()
+  const exp = moment(timestamp).add(1, 'm').unix()
 
   // first arg is the info we want encrypted
   // 2nd arg is the secret we want to encode with
@@ -91,4 +91,12 @@ exports.addTokenCookiesToResponse = (jwt, csrf, res) => {
     httpOnly: true,
     maxAge: 7 * 24 * 3600000
   })
+}
+
+exports.compareCSRFTokens = (cookieCSRF, jwtCSRF) => {
+  if (cookieCSRF !== jwtCSRF) {
+    return false
+  }
+
+  return true
 }
