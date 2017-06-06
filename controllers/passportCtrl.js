@@ -157,7 +157,7 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
     }
 
     if (user) {
-      // null is no error, send our found user through
+      // null is no error, send our found user+jwt user through to the next step
       done(null, user, { refresh, decodedUser })
     } else {
       //no error, no user

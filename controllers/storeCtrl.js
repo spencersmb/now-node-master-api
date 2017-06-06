@@ -82,7 +82,8 @@ exports.createStore = async (req, res) => {
     const update = authUtils.checkForTokenRefresh(response, res.locals.token)
     return res.send(update)
   } catch (e) {
-    return res.status(422).send({ message: e.message })
+    // Weird object for mongoose error handeling
+    return res.status(422).send({ error: e.errors.name.message })
   }
 }
 
