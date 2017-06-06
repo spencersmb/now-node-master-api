@@ -213,8 +213,9 @@ exports.signin = function(req, res, next) {
           return res.status(500).send(err)
         }
 
-        return res.send({ token: jwt })
+        res.send({ token: jwt })
       })
+      return
     }
 
     const session = new Session({
@@ -232,8 +233,10 @@ exports.signin = function(req, res, next) {
         return res.status(500).send(err)
       }
 
-      return res.send({ token: jwt })
+      res.send({ token: jwt })
     })
+
+    return
   })
 }
 
