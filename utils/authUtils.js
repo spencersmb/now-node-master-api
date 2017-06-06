@@ -4,30 +4,11 @@ const CSRF = require('csrf')
 const envConfig = require('../config/env-config')
 
 exports.checkTokenForExp = tokenExp => {
-  console.log('env vars')
-  console.log(envConfig)
-
-  // let refresh = null
-
   const currentTime = moment().unix()
-  const refreshWindow = envConfig.variables.REFRESH_WINDOW // min
   const expired = tokenExp < currentTime // because time goes up
-  const duration = tokenExp - currentTime
-  const timeLeft = moment.duration(duration * 1000, 'milliseconds')
-  const minLeft = moment.duration(timeLeft).minutes()
-  const withInWindowOfExpiring = minLeft <= refreshWindow && minLeft > 0
-
-  // if (expired) {
-  //   console.log('JWT expired')
-
-  //   // refresh = 'expired'
-  //   return 'expired'
-  // }
-
-  if (withInWindowOfExpiring) {
-    console.log('Token needs refresh')
-
-    // refresh = 'refresh'
+  if (expired) {
+    console.log('JWT expired')
+    // refresh = 'expired'
     return true
   }
 

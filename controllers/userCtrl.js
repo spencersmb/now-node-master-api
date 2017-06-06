@@ -9,22 +9,34 @@ const jwToken = require('jsonwebtoken')
 
 exports.refreshTokens = async (req, res, next) => {
   console.log('Start refreshToken function')
-  // console.log(req.authInfo.refresh.token)
-  // console.log(req.cookies.jwt)
-  const reqCSRF = req.cookies._CSRF
-  let decoded
-  try {
-    decoded = await jwToken.verify(req.cookies.jwt, process.env.SECRET, {
-      ignoreExpiration: true //handled by OAuth2 server implementation
-    })
-  } catch (e) {
-    console.log('JWT error')
-    res.status(401).send('Unauthorized')
+  // console.log(req)
+
+  // no refresh needed move on to next middleware
+  if (!req.authInfo.refresh.token) {
+    next()
+    return
   }
 
+  console.log('req user')
+  console.log(req.user)
+  const decodedUser = req.authInfo.decodedUser
+  // console.log(req.cookies.jwt)
+  const reqCSRF = req.cookies._CSRF
+  // let decoded
+  /// may not need this if we can use the original auth
+  // try {
+  //   decoded = await jwToken.verify(req.cookies.jwt, process.env.SECRET, {
+  //     ignoreExpiration: true //handled by OAuth2 server implementation
+  //   })
+  // } catch (e) {
+  //   console.log('JWT error')
+  //   res.status(401).send('Unauthorized')
+  // }
+
   // console.log(req.body)
-  const email = decoded.email
-  const rfsToken = decoded.rfs
+  const email = decodedUser.email
+  const rfsToken = decodedUser.rfs
+  const csrfToken = decodedUser.csrf
 
   // make sure user is valid
   User.findOne({ email: email }, async function(err, existingUser) {
@@ -40,7 +52,7 @@ exports.refreshTokens = async (req, res, next) => {
     }
 
     // insert check that CSRF matches
-    if (!authUtils.compareCSRFTokens(reqCSRF, decoded.csrf)) {
+    if (!authUtils.compareCSRFTokens(reqCSRF, csrfToken)) {
       console.log('!compareCSRF')
       res.status(401).send('Unauthorized')
       return
@@ -60,6 +72,8 @@ exports.refreshTokens = async (req, res, next) => {
     )
 
     if (!result) {
+      console.log('no result')
+
       authUtils.clearCookies(res)
       res.status(401).send('Unauthorized')
       return
@@ -67,7 +81,10 @@ exports.refreshTokens = async (req, res, next) => {
 
     authUtils.addTokenCookiesToResponse(jwt, csrf, res)
 
-    res.send({ token: jwt })
+    // res.send({ token: jwt })
+    res.locals.token = jwt
+
+    next()
   })
 }
 

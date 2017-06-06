@@ -68,7 +68,7 @@ exports.resize = async (req, res, next) => {
 
 exports.createStore = async (req, res) => {
   console.log('create Store body')
-  console.log(req)
+  // console.log(req)
   console.log(req.body)
 
   //ERROR TEST OBJECT

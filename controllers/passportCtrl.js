@@ -85,7 +85,8 @@ const extractCSRFCookie = req => {
 const jwtOptions = {
   jwtFromRequest: cookieExtractor,
   secretOrKey: process.env.SECRET,
-  passReqToCallback: true
+  passReqToCallback: true,
+  ignoreExpiration: true
 }
 
 // Create JWT Strategy
@@ -96,6 +97,8 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
   Second cookie should be the JWT which is decoded and located in 'payload'
   **** The goal is to match the _CSRF with the csrf key in the jwt ****
   */
+
+  const decodedUser = payload
 
   const csrf = extractCSRFCookie(request)
   // if No match - quit right away
@@ -146,8 +149,8 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
   // })
 
   User.findById(payload.sub, function(err, user) {
-    console.log('find user on auth')
-    console.log(user)
+    // console.log('find user on auth')
+    // console.log(user)
 
     if (err) {
       return done(err, false)
@@ -155,7 +158,7 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
 
     if (user) {
       // null is no error, send our found user through
-      done(null, user, { refresh })
+      done(null, user, { refresh, decodedUser })
     } else {
       //no error, no user
       // no user found - so token doesnt matter anyways
