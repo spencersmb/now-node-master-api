@@ -286,29 +286,29 @@ exports.signout = async function(req, res, next) {
   //User has already been authed - just need to give them a token
   console.log('sign out')
   const jwt = req.cookies.jwt
-
   let decoded
+
   try {
     decoded = await jwToken.verify(req.cookies.jwt, process.env.SECRET, {
       ignoreExpiration: true //handled by OAuth2 server implementation
     })
+
     const email = decoded.email
     const rfsToken = decoded.rfs
+    const query = { email: email }
+    const update = { $pull: { refreshTokens: { token: rfsToken } } }
+    const options = { new: false }
 
-    await Session.update(
-      { email: email },
-      { $pull: { refreshTokens: { token: rfsToken } } }
-    )
-
-    const session = await Session.findOne({ email: email })
-
-    if (session.refreshTokens.length === 0) {
-      session.remove()
-    }
-  } catch (e) {
+    Session.findOneAndUpdate(query, update, options, function(err, item) {
+      if (err) {
+      }
+      if (item.refreshTokens.length <= 1) {
+        item.remove()
+      }
+    })
+  } catch (err) {
     console.log('JWT error')
     res.status(500).send(err)
-    // res.status(401).send('Unauthorized')
   }
 
   authUtils.clearCookies(res)
