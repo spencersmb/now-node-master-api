@@ -21,6 +21,7 @@ exports.refreshTokens = async (req, res, next) => {
     console.log('JWT error')
     res.status(401).send('Unauthorized')
   }
+
   // console.log(req.body)
   const email = decoded.email
   const rfsToken = decoded.rfs
@@ -28,17 +29,19 @@ exports.refreshTokens = async (req, res, next) => {
   // make sure user is valid
   User.findOne({ email: email }, async function(err, existingUser) {
     if (err) {
-      return next(err)
+      res.status(500).send(err)
     }
 
     if (!existingUser) {
+      console.log('!existingUser')
       authUtils.clearCookies(res)
       res.status(401).send('Unauthorized')
       return
     }
 
     // insert check that CSRF matches
-    if (!authUtils.compareCSRFTokens(reqCSRF, decoded._CSRF)) {
+    if (!authUtils.compareCSRFTokens(reqCSRF, decoded.csrf)) {
+      console.log('!compareCSRF')
       res.status(401).send('Unauthorized')
       return
     }
@@ -148,10 +151,6 @@ exports.registerUser = async (req, res, next) => {
       res.status(422).send({ error: 'Email is in use' })
     }
 
-    const refreshToken = randToken.uid(256)
-    const csrf = authUtils.createUserToken__CSRF()
-    const token = authUtils.createUserToken__JWT(user, csrf)
-
     // create new user in memory
     // If a user with email does not exist, create and save user record
     const user = new User({
@@ -159,6 +158,10 @@ exports.registerUser = async (req, res, next) => {
       password: password,
       name: name
     })
+
+    const refreshToken = randToken.uid(256)
+    const csrf = authUtils.createUserToken__CSRF()
+    const jwt = authUtils.createUserToken__JWT(user, csrf, refreshToken)
 
     const session = new Session({
       email: email,
@@ -176,12 +179,12 @@ exports.registerUser = async (req, res, next) => {
       await user.save()
       await session.save()
     } catch (err) {
-      return next(err)
+      res.status(500).send(err)
     }
 
     authUtils.addTokenCookiesToResponse(jwt, csrf, res)
 
-    res.send({ token: token })
+    res.send({ token: jwt })
 
     // user.save(function(err) {
     //   if (err) {
@@ -222,7 +225,7 @@ exports.signin = function(req, res, next) {
   // if none found create new one
   Session.findOne({ email: email }, function(err, existingSession) {
     if (err) {
-      return next(err)
+      res.status(500).send(err)
     }
 
     if (existingSession) {
@@ -233,7 +236,7 @@ exports.signin = function(req, res, next) {
       existingSession.refreshTokens.push(rfshToken)
       existingSession.save(function(err) {
         if (err) {
-          return next(err)
+          res.status(500).send(err)
         }
 
         res.send({ token: jwt })
@@ -254,7 +257,7 @@ exports.signin = function(req, res, next) {
     // Save new session to DB
     session.save(function(err) {
       if (err) {
-        return next(err)
+        res.status(500).send(err)
       }
 
       res.send({ token: jwt })
@@ -262,9 +265,38 @@ exports.signin = function(req, res, next) {
   })
 }
 
-exports.signout = function(req, res, next) {
+exports.signout = async function(req, res, next) {
   //User has already been authed - just need to give them a token
   console.log('sign out')
+  const jwt = req.cookies.jwt
+
+  let decoded
+  try {
+    decoded = await jwToken.verify(req.cookies.jwt, process.env.SECRET, {
+      ignoreExpiration: true //handled by OAuth2 server implementation
+    })
+    const email = decoded.email
+    const rfsToken = decoded.rfs
+
+    console.log('decoded')
+    console.log(decoded)
+
+    Session.update(
+      { email: email },
+      { $pull: { refreshTokens: { token: rfsToken } } },
+      function(err, doc) {
+        if (err) {
+          res.status(500).send(err)
+        }
+        console.log('remove')
+        console.log(doc)
+      }
+    )
+  } catch (e) {
+    console.log('JWT error')
+    // res.status(401).send('Unauthorized')
+  }
+
   authUtils.clearCookies(res)
   res.send({ status: 'signedOUt' })
 }

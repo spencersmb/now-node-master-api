@@ -8,7 +8,7 @@ const passport = require('passport')
 const requireAuth = passport.authenticate('jwt', { session: false })
 const requireSignIn = passport.authenticate('local', { session: false })
 
-router.post('/refresh', userCtrl.refreshTokens)
+router.get('/refresh', userCtrl.refreshTokens)
 
 router.post(
   '/add',
