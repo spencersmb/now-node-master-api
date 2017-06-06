@@ -295,22 +295,19 @@ exports.signout = async function(req, res, next) {
     const email = decoded.email
     const rfsToken = decoded.rfs
 
-    console.log('decoded')
-    console.log(decoded)
-
-    Session.update(
+    await Session.update(
       { email: email },
-      { $pull: { refreshTokens: { token: rfsToken } } },
-      function(err, doc) {
-        if (err) {
-          res.status(500).send(err)
-        }
-        console.log('remove')
-        console.log(doc)
-      }
+      { $pull: { refreshTokens: { token: rfsToken } } }
     )
+
+    const session = await Session.findOne({ email: email })
+
+    if (session.refreshTokens.length === 0) {
+      session.remove()
+    }
   } catch (e) {
     console.log('JWT error')
+    res.status(500).send(err)
     // res.status(401).send('Unauthorized')
   }
 
