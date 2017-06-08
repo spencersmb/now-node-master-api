@@ -21,7 +21,9 @@ const userSchema = new Schema({
     required: true,
     trim: true
   },
-  password: String
+  password: String,
+  resetPasswordToken: String,
+  resetPasswordExp: Number
 })
 
 // Generate Field on the fly

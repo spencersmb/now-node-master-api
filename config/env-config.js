@@ -10,5 +10,6 @@ exports.variables = {
   BACKEND_URL: prod
     ? 'https://testone.now.sh/api'
     : 'http://localhost:3000/api',
-  REFRESH_WINDOW: 15
+  REFRESH_WINDOW: 15,
+  RAW_URL: prod ? 'https://testone.now.sh' : 'http://localhost:3000'
 }

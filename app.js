@@ -20,7 +20,8 @@ const cors = require('cors')
 
 // create our Express app
 const app = express()
-
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: true }))
 //REMOVE
 // view engine setup
 // app.set('views', path.join(__dirname, 'views')) // this is the folder where we keep our pug files
@@ -48,8 +49,6 @@ var corsOptions = {
 // app.use(express.static(path.join(__dirname, 'public')))
 
 // Takes the raw requests and turns them into usable properties on req.body
-app.use(bodyParser.json())
-app.use(bodyParser.urlencoded({ extended: true }))
 
 //FRONTEND
 // Exposes a bunch of methods for validating data. Used heavily on userController.validateRegister

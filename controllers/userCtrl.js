@@ -6,6 +6,73 @@ const promisify = require('es6-promisify')
 const authUtils = require('../utils/authUtils')
 const randToken = require('rand-token')
 const jwToken = require('jsonwebtoken')
+const crypto = require('crypto')
+const moment = require('moment')
+const env = require('../config/env-config')
+
+// On sign up:
+// encode user in JWT
+// create JWT COOKIE in res
+// create CSRF COOKIE in res
+// Find if user has a session
+// If true add a new refreshToken to session
+// If false - create and add session in DB with refreshtoken
+// Send JWT response back to server
+exports.signin = function(req, res, next) {
+  //User has already been authed - just need to give them a token
+  console.log('signin!')
+  const email = req.user.email
+
+  const refreshToken = randToken.uid(256)
+  const csrf = authUtils.createUserToken__CSRF()
+  const jwt = authUtils.createUserToken__JWT(req.user, csrf, refreshToken)
+
+  authUtils.addTokenCookiesToResponse(jwt, csrf, res)
+
+  // find existing session
+  // if none found create new one
+  Session.findOne({ email: email }, function(err, existingSession) {
+    if (err) {
+      return res.status(500).send(err)
+    }
+
+    if (existingSession) {
+      const rfshToken = new RefreshToken({
+        token: refreshToken
+      })
+
+      existingSession.refreshTokens.push(rfshToken)
+      existingSession.save(function(err) {
+        if (err) {
+          return res.status(500).send(err)
+        }
+
+        res.send({ token: jwt })
+      })
+      return
+    }
+
+    const session = new Session({
+      email: email,
+      refreshTokens: [
+        {
+          token: refreshToken
+        }
+      ]
+    })
+
+    // Save new session to DB
+    session.save(function(err) {
+      if (err) {
+        return res.status(500).send(err)
+      }
+
+      res.send({ token: jwt })
+    })
+
+    return
+  })
+}
 
 exports.refreshTokens = async (req, res, next) => {
   console.log('Start refreshToken function')
@@ -39,6 +106,8 @@ exports.refreshTokens = async (req, res, next) => {
       console.log('!compareCSRF')
       return res.status(401).send('Unauthorized')
     }
+
+    //insert check for password reset flag
 
     // Create new tokens
     const refreshToken = randToken.uid(256)
@@ -176,70 +245,6 @@ exports.registerUser = async (req, res, next) => {
   })
 }
 
-// On sign up:
-// encode user in JWT
-// create JWT COOKIE in res
-// create CSRF COOKIE in res
-// Find if user has a session
-// If true add a new refreshToken to session
-// If false - create and add session in DB with refreshtoken
-// Send JWT response back to server
-exports.signin = function(req, res, next) {
-  //User has already been authed - just need to give them a token
-  console.log('signin!')
-  const email = req.user.email
-
-  const refreshToken = randToken.uid(256)
-  const csrf = authUtils.createUserToken__CSRF()
-  const jwt = authUtils.createUserToken__JWT(req.user, csrf, refreshToken)
-
-  authUtils.addTokenCookiesToResponse(jwt, csrf, res)
-
-  // find existing session
-  // if none found create new one
-  Session.findOne({ email: email }, function(err, existingSession) {
-    if (err) {
-      return res.status(500).send(err)
-    }
-
-    if (existingSession) {
-      const rfshToken = new RefreshToken({
-        token: refreshToken
-      })
-
-      existingSession.refreshTokens.push(rfshToken)
-      existingSession.save(function(err) {
-        if (err) {
-          return res.status(500).send(err)
-        }
-
-        res.send({ token: jwt })
-      })
-      return
-    }
-
-    const session = new Session({
-      email: email,
-      refreshTokens: [
-        {
-          token: refreshToken
-        }
-      ]
-    })
-
-    // Save new session to DB
-    session.save(function(err) {
-      if (err) {
-        return res.status(500).send(err)
-      }
-
-      res.send({ token: jwt })
-    })
-
-    return
-  })
-}
-
 exports.signout = async function(req, res, next) {
   //User has already been authed - just need to give them a token
   console.log('sign out')
@@ -271,4 +276,130 @@ exports.signout = async function(req, res, next) {
 
   authUtils.clearCookies(res)
   return res.send({ status: 'signedOUt' })
+}
+
+exports.updateAccount = async function(req, res, next) {
+  /*
+  * Get new user and update USER in DB
+  * If emails don't match, meaning it was changed
+  * Then update the Session Object that matches the user and refreshToken, with updated info 
+  */
+  const decodedUser = req.authInfo.decodedUser
+  const email = decodedUser.email
+  const rfsToken = decodedUser.rfs
+  const csrfToken = decodedUser.csrf
+  const newUser = req.body
+
+  let user
+  try {
+    user = await User.findOneAndUpdate(
+      { _id: decodedUser.sub },
+      { $set: newUser },
+      { new: true, runValidators: true, context: 'query' }
+    )
+  } catch (e) {
+    res.status(500).send({ error: e })
+  }
+
+  const refreshToken = randToken.uid(256)
+  const csrf = authUtils.createUserToken__CSRF()
+  const jwt = authUtils.createUserToken__JWT(user, csrf, refreshToken)
+
+  // then find oldUser in SESSIONS and delete full doc? Then add new SESSION
+  // Replace email + the refreshToken.token
+  if (user.email !== email) {
+    console.log('new email too')
+
+    const session = await Session.findOneAndUpdate(
+      { email: decodedUser.email, 'refreshTokens.token': rfsToken },
+      {
+        $set: {
+          email: user.email,
+          'refreshTokens.$': new RefreshToken({ token: refreshToken })
+        }
+      },
+      { new: true, context: 'query' }
+    )
+  }
+
+  // update new cookies
+  authUtils.addTokenCookiesToResponse(jwt, csrf, res)
+
+  // res.status 200
+  res.send({ data: user })
+}
+
+exports.forgotUser = async function(req, res, next) {
+  // see if user exists
+  const user = await User.findOne({ email: req.body.email })
+  if (!user) {
+    return res.status(422).send({ error: 'No account with that email exists' })
+  }
+  // set reset tokens and expirey on account
+  const timestamp = moment()
+  const exp = moment(timestamp).add(60, 'm').unix()
+  user.resetPasswordToken = crypto.randomBytes(20).toString('hex')
+  user.resetPasswordExp = exp
+  await user.save()
+  // send email with new token
+
+  const resetUrl = `${env.variables.RAW_URL}/account/reset/${user.resetPasswordToken}`
+  res.send({
+    data: {
+      message: `Please check your email for the reset link. ${resetUrl}`
+    }
+  })
+
+  // redirect with login page
+}
+
+exports.resetCheck = async function(req, res, next) {
+  // find user by resetToken
+  const now = moment().unix()
+  const resetToken = req.body.resetToken
+  const user = await User.findOne({
+    resetPasswordToken: resetToken,
+    resetPasswordExp: { $gt: now }
+  })
+
+  if (!user) {
+    return res
+      .status(422)
+      .send({ error: 'Password reset is invalid or has expired' })
+  }
+
+  return res.send({ message: 'valid user' })
+}
+
+exports.updatePassword = async function(req, res, next) {
+  console.log('body')
+  console.log(req.body)
+
+  // find user by resetToken
+  // find user by resetToken
+  const now = moment().unix()
+  const resetToken = req.body.token
+  const updatedPassword = req.body.password
+  const user = await User.findOne({
+    resetPasswordToken: resetToken,
+    resetPasswordExp: { $gt: now }
+  })
+
+  if (!user) {
+    return res
+      .status(422)
+      .send({ error: 'Password reset is invalid or has expired' })
+  }
+
+  user.password = updatedPassword
+  user.resetPasswordExp = undefined
+  user.resetPasswordToken = undefined
+  user.save()
+
+  const update = authUtils.checkForTokenRefresh(
+    { message: 'password updated' },
+    null
+  )
+
+  return res.send(update)
 }
