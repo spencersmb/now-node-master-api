@@ -9,7 +9,7 @@ const jwToken = require('jsonwebtoken')
 const crypto = require('crypto')
 const moment = require('moment')
 const env = require('../config/env-config')
-
+const mail = require('../handlers/mail')
 // On sign up:
 // encode user in JWT
 // create JWT COOKIE in res
@@ -341,12 +341,20 @@ exports.forgotUser = async function(req, res, next) {
   user.resetPasswordToken = crypto.randomBytes(20).toString('hex')
   user.resetPasswordExp = exp
   await user.save()
-  // send email with new token
 
-  const resetUrl = `${env.variables.RAW_URL}/account/reset/${user.resetPasswordToken}`
+  const resetURL = `${env.variables.RAW_URL}/account/reset/${user.resetPasswordToken}`
+
+  // send email with new token
+  await mail.send({
+    user,
+    subject: 'Password Reset',
+    resetURL,
+    filename: 'password-reset'
+  })
+
   res.send({
     data: {
-      message: `Please check your email for the reset link. ${resetUrl}`
+      message: `Please check your email for the reset link.`
     }
   })
 
