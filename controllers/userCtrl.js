@@ -74,6 +74,10 @@ exports.signin = function(req, res, next) {
   })
 }
 
+// ADD CHECKS FOR NEW PASSWORD OR EMAIL CHANGES using expiredTimestamp
+// ALSO IF USER IS VERIFIED(not valid)
+
+//if they have request - log user out with 401 response
 exports.refreshTokens = async (req, res, next) => {
   console.log('Start refreshToken function')
   // no refresh needed move on to next middleware
@@ -212,36 +216,40 @@ exports.registerUser = async (req, res, next) => {
 
     // create new user in memory
     // If a user with email does not exist, create and save user record
+    const timestamp = moment()
+    const exp = moment(timestamp).add(60, 'm').unix()
     const user = new User({
       email: email,
       password: password,
-      name: name
+      name: name,
+      validateUserToken: crypto.randomBytes(20).toString('hex'),
+      validateUserExp: exp
     })
-    const refreshToken = randToken.uid(256)
-    const csrf = authUtils.createUserToken__CSRF()
-    const jwt = authUtils.createUserToken__JWT(user, csrf, refreshToken)
-    const session = new Session({
-      email: email,
-      refreshTokens: [
-        {
-          token: refreshToken
-        }
-      ]
-    })
+
+    const registerURL = `${env.variables.RAW_URL}/account/confirm/${user.validateUserToken}`
 
     // Save record to the DB
     // callback for when we get notified if user was saved or not
-    console.log(' begin saving user')
     try {
       await user.save()
-      await session.save()
+
+      // send email with new token
+      await mail.send({
+        user,
+        subject: 'Confirm Registration',
+        registerURL,
+        filename: 'confirm-registration'
+      })
     } catch (err) {
+      console.log('weird error?', err)
       return res.status(500).send(err)
     }
 
-    authUtils.addTokenCookiesToResponse(jwt, csrf, res)
-
-    res.send({ token: jwt })
+    res.send({
+      data: {
+        message: 'Please check your email to confirm user'
+      }
+    })
   })
 }
 
@@ -377,6 +385,63 @@ exports.resetCheck = async function(req, res, next) {
   }
 
   return res.send({ message: 'valid user' })
+}
+
+exports.confirm = async function(req, res, next) {
+  console.log('body')
+  console.log(req.body)
+
+  // find user by resetToken
+  // find user by resetToken
+  const now = moment().unix()
+  const validateUserToken = req.body.token
+  const user = await User.findOne({
+    validateUserToken: validateUserToken,
+    validateUserExp: { $gt: now }
+  })
+
+  if (!user) {
+    return res.status(422).send({ error: 'Request is invalid or has expired' })
+  }
+
+  user.valid = true
+  user.validateUserToken = undefined
+  user.validateUserExp = undefined
+
+  //PROBLY COULD CREAT JWT TOKEN CLASS to user
+  const refreshToken = randToken.uid(256)
+  const csrf = authUtils.createUserToken__CSRF()
+  const jwt = authUtils.createUserToken__JWT(user, csrf, refreshToken)
+
+  const session = new Session({
+    email: user.email,
+    refreshTokens: [
+      {
+        token: refreshToken
+      }
+    ]
+  })
+
+  // Save record to the DB
+  // callback for when we get notified if user was saved or not
+  try {
+    await user.save()
+    await session.save()
+
+    // send Confirmation EMAIL?
+    // await mail.send({
+    //   user,
+    //   subject: 'Confirm Registration',
+    //   registerURL,
+    //   filename: 'confirm-registration'
+    // })
+  } catch (err) {
+    return res.status(500).send(err)
+  }
+
+  authUtils.addTokenCookiesToResponse(jwt, csrf, res)
+
+  res.send({ token: jwt }) // probly dont need to send jwt here
 }
 
 exports.updatePassword = async function(req, res, next) {

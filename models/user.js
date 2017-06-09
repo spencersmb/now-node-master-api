@@ -6,6 +6,7 @@ const validator = require('validator')
 const mongodbErrorHandler = require('mongoose-mongodb-errors')
 const passportLocalMongoose = require('passport-local-mongoose')
 const bcrypt = require('bcrypt-nodejs')
+const moment = require('moment')
 
 const userSchema = new Schema({
   email: {
@@ -21,7 +22,17 @@ const userSchema = new Schema({
     required: true,
     trim: true
   },
+  valid: {
+    type: Boolean,
+    default: false
+  },
+  userCreatedAt: {
+    type: Date,
+    default: moment().unix()
+  },
   password: String,
+  validateUserToken: String,
+  validateUserExp: Number,
   resetPasswordToken: String,
   resetPasswordExp: Number
 })

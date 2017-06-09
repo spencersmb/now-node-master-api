@@ -63,6 +63,8 @@ exports.clearCookies = res => {
 }
 
 exports.addTokenCookiesToResponse = (jwt, csrf, res) => {
+  console.log('Added Cookies')
+
   res.cookie('jwt', jwt, {
     httpOnly: true,
     maxAge: 7 * 24 * 3600000

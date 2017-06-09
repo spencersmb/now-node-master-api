@@ -8,6 +8,7 @@ const passport = require('passport')
 const requireAuth = passport.authenticate('jwt', { session: false })
 const requireSignIn = passport.authenticate('local', { session: false })
 
+router.post('/account/confirm', userCtrl.confirm)
 router.post('/account/resetCheck', userCtrl.resetCheck)
 router.post('/account/reset', userCtrl.updatePassword)
 

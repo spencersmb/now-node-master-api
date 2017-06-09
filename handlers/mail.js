@@ -22,14 +22,18 @@ exports.send = async options => {
   })
 
   const html = generateHTML(options.filename, options)
+  const text = htmlToText.fromString(html)
 
   const mailOptions = {
     from: `Spencer <${process.env.MAIL_USER}>`,
     to: options.user.email,
     subject: options.subject,
     html,
-    text: htmlToText.fromString(html)
+    text: text
   }
+
+  console.log('mailOptions')
+  console.log(mailOptions)
 
   // mailgun.messages().send(mailOptions, function(error, body) {
   //   if (!error) {

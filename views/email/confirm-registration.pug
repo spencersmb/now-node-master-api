@@ -1,0 +1,9 @@
+extends email-layout
+
+block content
+  h2 Confirm Registraion
+  p Hello. You have requested a new user. Please click the following button to continue on with confirming your new membership. Please note this link is only valid for the next hour.
+  +button(registerURL, 'Confirm →')
+  p If you can't click the above button please visit #{registerURL}
+  br
+  p If you didn't request this email, please ignore it.
