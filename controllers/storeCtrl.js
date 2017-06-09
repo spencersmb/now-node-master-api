@@ -71,13 +71,11 @@ exports.createStore = async (req, res) => {
   // console.log(req)
   console.log(req.body)
 
-  //ERROR TEST OBJECT
-  // const error = storeObj
-  // error.name = ''
-  // const store = new Store(error)
-  const store = new Store(req.body)
+  //Add Author after the fact using JWT on the server
+  req.body.author = req.authInfo.decodedUser.sub
 
   try {
+    const store = new Store(req.body)
     const response = await store.save()
     const update = authUtils.checkForTokenRefresh(response, res.locals.token)
     return res.send(update)
@@ -88,8 +86,11 @@ exports.createStore = async (req, res) => {
 }
 
 exports.getStores = async (req, res) => {
+  const allowedFields = ['_id', 'name']
   try {
-    const stores = await Store.find().sort([['_id', 1]])
+    const stores = await Store.find()
+      .sort([['_id', 1]])
+      .populate('author', allowedFields)
     return res.send({ stores })
   } catch (e) {
     return res.status(422).send({ message: e.message })
@@ -97,17 +98,16 @@ exports.getStores = async (req, res) => {
 }
 
 exports.getStore = async (req, res) => {
-  console.log('slug')
-  console.log(req.params)
+  const allowedFields = ['_id', 'name']
 
   try {
-    const store = await Store.find({
+    const store = await Store.findOne({
       slug: req.params.slug
-    })
-    console.log('store')
-    console.log(store)
+    }).populate('author', allowedFields)
 
-    return res.send({ store })
+    const update = authUtils.checkForTokenRefresh(store, null)
+
+    return res.send(update)
   } catch (e) {
     return res.status(422).send({ message: e.message })
   }

@@ -14,7 +14,12 @@ const storeSchema = new mongoose.Schema({
     trim: true
   },
   tags: [String],
-  photo: String
+  photo: String,
+  author: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'User',
+    required: 'You must supply an author'
+  }
 })
 
 //before its save - we run a function to build the SLUG

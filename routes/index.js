@@ -29,12 +29,7 @@ router.post(
   storeCtrl.resize,
   storeCtrl.createStore
 )
-router.get(
-  '/store/:slug',
-  requireAuth,
-  userCtrl.refreshTokens,
-  storeCtrl.getStore
-)
+router.get('/store/:slug', storeCtrl.getStore)
 router.get('/stores', storeCtrl.getStores)
 router.get('/tags/:tag*?', storeCtrl.getTagsList)
 router.post(
