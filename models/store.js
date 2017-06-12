@@ -22,6 +22,9 @@ const storeSchema = new mongoose.Schema({
   }
 })
 
+// Define stores index
+storeSchema.index({ name: 'text', description: 'text' })
+
 //before its save - we run a function to build the SLUG
 storeSchema.pre('save', async function(next) {
   if (!this.isModified('name')) {

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const Store = mongoose.model('Store')
+const User = mongoose.model('User')
 const ImageUploader = require('../utils/ImageUploader')
 const slug = require('slugs') //wordpress permalink?
 const multer = require('multer')
@@ -88,9 +89,7 @@ exports.createStore = async (req, res) => {
 exports.getStores = async (req, res) => {
   const allowedFields = ['_id', 'name']
   try {
-    const stores = await Store.find()
-      .sort([['_id', 1]])
-      .populate('author', allowedFields)
+    const stores = await Store.find().sort([['_id', -1]])
     return res.send({ stores })
   } catch (e) {
     return res.status(422).send({ message: e.message })
@@ -148,4 +147,55 @@ exports.getTagsList = async (req, res) => {
   } catch (e) {
     return res.status(422).send({ message: e.message })
   }
+}
+
+exports.searchStore = async (req, res) => {
+  console.log('req')
+  console.log(req.query.q)
+  const stores = await Store
+    // Find stores
+    .find(
+      {
+        // text is the operator - I think corrosponds to index type
+        $text: {
+          $search: req.query.q
+        }
+      },
+      {
+        score: { $meta: 'textScore' }
+      }
+    )
+    // Sort by score
+    .sort({
+      score: { $meta: 'textScore' }
+    })
+    // limit by 5
+    .limit(5)
+
+  return res.json(stores)
+}
+
+exports.heartStore = async (req, res) => {
+  console.log('req')
+  console.log(req.params.id)
+  console.log('user')
+  console.log(req.user)
+
+  // Get list of current hearts on the auth'd User
+  const hearts = req.user.hearts.map(heartObj => heartObj.toString())
+  console.log(hearts)
+
+  // does heart exist in the current user?
+  // $addToSet is like push but wont add duplicates
+  const operator = hearts.includes(req.params.id) ? '$pull' : '$addToSet'
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { [operator]: { hearts: req.params.id } },
+    { new: true }
+  )
+
+  const update = authUtils.checkForTokenRefresh(user.hearts, null)
+
+  return res.send(update)
 }

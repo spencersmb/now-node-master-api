@@ -8,6 +8,8 @@ const passport = require('passport')
 const requireAuth = passport.authenticate('jwt', { session: false })
 const requireSignIn = passport.authenticate('local', { session: false })
 
+router.get('/search', storeCtrl.searchStore)
+
 router.post('/account/confirm', userCtrl.confirm)
 router.post('/account/resetCheck', userCtrl.resetCheck)
 router.post('/account/reset', userCtrl.updatePassword)
@@ -28,6 +30,12 @@ router.post(
   storeCtrl.upload,
   storeCtrl.resize,
   storeCtrl.createStore
+)
+router.post(
+  '/stores/:id/heart',
+  requireAuth,
+  userCtrl.refreshTokens,
+  storeCtrl.heartStore
 )
 router.get('/store/:slug', storeCtrl.getStore)
 router.get('/stores', storeCtrl.getStores)

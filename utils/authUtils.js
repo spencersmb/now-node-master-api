@@ -34,6 +34,7 @@ exports.createUserToken__JWT = (user, csrf, refreshToken) => {
       csrf: csrf,
       rfs: refreshToken,
       exp: exp,
+      hearts: user.hearts,
       iat: timestamp // issue at time
     },
     process.env.SECRET

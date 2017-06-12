@@ -30,6 +30,12 @@ const userSchema = new Schema({
     type: Date,
     default: moment().unix()
   },
+  hearts: [
+    {
+      type: mongoose.Schema.ObjectId,
+      ref: 'Store'
+    }
+  ],
   password: String,
   validateUserToken: String,
   validateUserExp: Number,
