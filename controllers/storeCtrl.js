@@ -87,7 +87,6 @@ exports.createStore = async (req, res) => {
 }
 
 exports.getStores = async (req, res) => {
-  const allowedFields = ['_id', 'name']
   try {
     const stores = await Store.find().sort([['_id', -1]])
     return res.send({ stores })
@@ -130,6 +129,14 @@ exports.updateStore = async (req, res) => {
   } catch (e) {
     return res.status(422).send({ message: e.message })
   }
+}
+
+exports.getFavStores = async (req, res) => {
+  const user = req.user
+  const favStores = await Store.find({ _id: { $in: user.hearts } })
+  const update = authUtils.checkForTokenRefresh(favStores, null)
+
+  return res.send(update)
 }
 
 exports.getTagsList = async (req, res) => {

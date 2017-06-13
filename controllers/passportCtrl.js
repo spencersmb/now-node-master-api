@@ -61,25 +61,61 @@ const localLogin = new LocalStrategy(localOptions, function(
 */
 // Setup Options
 const cookieExtractor = function(req) {
-  var token = null
+  // var token = null
   if (req && req.cookies) {
     token = req.cookies['jwt']
   }
+
   return token
+  // if (!req.headers.cookie) {
+  //   return undefined
+  // }
+  // let jwt = ''
+  // let jwtCookie = req.headers.cookie
+  //   .split(';')
+  //   .find(c => c.trim().startsWith('jwt='))
+
+  // if (jwtCookie) {
+  //   jwt = jwtCookie.split('=')[1]
+  // }
+  // if (!jwtCookie) {
+  //   return undefined
+  // }
+  // console.log('jwt FOund', jwt)
+
+  // return jwt
 }
 
 const extractCSRFCookie = req => {
-  if (!req.headers.cookie) {
-    return undefined
+  if (req && req.cookies) {
+    token = req.cookies['_CSRF']
   }
-  const csrfCookie = req.headers.cookie
-    .split(';')
-    .find(c => c.trim().startsWith('_CSRF='))
-  if (!csrfCookie) {
-    return undefined
-  }
-  const csrf = csrfCookie.split('=')[1]
-  return csrf
+
+  return token
+  // if (!req.headers.cookie) {
+  //   return undefined
+  // }
+  // let csrf = ''
+  // let csrfCookie = req.headers.cookie
+  //   .split(';')
+  //   .find(c => c.trim().startsWith('_CSRF='))
+
+  // if (csrfCookie) {
+  //   csrf = csrfCookie.split('=')[1]
+  // }
+
+  // // console.log('csrfCookie', req.cookies['_CSRF'])
+  // console.log('csrf', csrf)
+  // // 2nd try
+  // // if (!csrfCookie) {
+  // //   csrf = req.cookies
+  // // }
+
+  // if (!csrfCookie) {
+  //   return undefined
+  // }
+
+  // return csrf
 }
 
 const jwtOptions = {
@@ -101,6 +137,7 @@ const jwtLogin = new JwtStrategy(jwtOptions, function(request, payload, done) {
   const decodedUser = payload
 
   const csrf = extractCSRFCookie(request)
+
   // if No match - quit right away
   if (csrf !== payload.csrf) {
     const error = {

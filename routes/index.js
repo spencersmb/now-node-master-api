@@ -37,6 +37,12 @@ router.post(
   userCtrl.refreshTokens,
   storeCtrl.heartStore
 )
+router.get(
+  '/stores/fav',
+  requireAuth,
+  userCtrl.refreshTokens,
+  storeCtrl.getFavStores
+)
 router.get('/store/:slug', storeCtrl.getStore)
 router.get('/stores', storeCtrl.getStores)
 router.get('/tags/:tag*?', storeCtrl.getTagsList)
