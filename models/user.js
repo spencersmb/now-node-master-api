@@ -8,44 +8,53 @@ const passportLocalMongoose = require('passport-local-mongoose')
 const bcrypt = require('bcrypt-nodejs')
 const moment = require('moment')
 
-const userSchema = new Schema({
-  email: {
-    type: String,
-    unique: true,
-    lowercase: true,
-    trim: true,
-    validate: [validator.isEmail, 'Invalid Email Address'],
-    required: 'Please supply an email address'
+const userSchema = new Schema(
+  {
+    email: {
+      type: String,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      validate: [validator.isEmail, 'Invalid Email Address'],
+      required: 'Please supply an email address'
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    valid: {
+      type: Boolean,
+      default: false
+    },
+    userCreatedAt: {
+      type: Date,
+      default: moment().unix()
+    },
+    hearts: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: 'Store'
+      }
+    ],
+    password: String,
+    validateUserToken: String,
+    validateUserExp: Number,
+    resetPasswordToken: String,
+    resetPasswordExp: Number
   },
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  valid: {
-    type: Boolean,
-    default: false
-  },
-  userCreatedAt: {
-    type: Date,
-    default: moment().unix()
-  },
-  hearts: [
-    {
-      type: mongoose.Schema.ObjectId,
-      ref: 'Store'
-    }
-  ],
-  password: String,
-  validateUserToken: String,
-  validateUserExp: Number,
-  resetPasswordToken: String,
-  resetPasswordExp: Number
-})
+  {
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+  }
+)
 
 // Generate Field on the fly
 userSchema.virtual('gravatar').get(function() {
   const hash = md5(this.email)
+  // console.log('md5')
+  // console.log(hash)
+
   return `https://gravatar.com/avatar/${hash}?s=200`
 })
 

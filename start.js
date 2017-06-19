@@ -24,6 +24,7 @@ require('./models/store')
 require('./models/user')
 require('./models/rfsToken')
 require('./models/session')
+require('./models/Reviews')
 
 // READY?! Let's go!
 

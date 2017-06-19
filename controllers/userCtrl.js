@@ -47,7 +47,7 @@ exports.signin = function(req, res, next) {
           return res.status(500).send(err)
         }
 
-        res.send({ token: jwt })
+        res.send({ token: jwt, hearts: req.user.hearts })
       })
       return
     }
@@ -67,7 +67,7 @@ exports.signin = function(req, res, next) {
         return res.status(500).send(err)
       }
 
-      res.send({ token: jwt })
+      res.send({ token: jwt, hearts: req.user.hearts })
     })
 
     return
@@ -117,6 +117,8 @@ exports.refreshTokens = async (req, res, next) => {
     const refreshToken = randToken.uid(256)
     const csrf = authUtils.createUserToken__CSRF()
     const jwt = authUtils.createUserToken__JWT(existingUser, csrf, refreshToken)
+
+    console.log('NEW REFRESH TOKEN CREATED')
 
     // update session in the DB with new tokens
     const result = await Session.findOneAndUpdate(
@@ -475,4 +477,13 @@ exports.updatePassword = async function(req, res, next) {
   )
 
   return res.send(update)
+}
+
+exports.userMetaData = async function(req, res) {
+  // Where does this come from? We pass it in on the done function in passport JWT solution after we find a matching user by ID
+  // Could pass a whole object of objects to be used instead of the current way?
+  const user = req.user
+  const hearts = user.hearts
+  const update = authUtils.checkForTokenRefresh(hearts, null)
+  res.send(update)
 }

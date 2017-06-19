@@ -62,6 +62,7 @@ const localLogin = new LocalStrategy(localOptions, function(
 // Setup Options
 const cookieExtractor = function(req) {
   // var token = null
+
   if (req && req.cookies) {
     token = req.cookies['jwt']
   }
@@ -90,7 +91,6 @@ const extractCSRFCookie = req => {
   if (req && req.cookies) {
     token = req.cookies['_CSRF']
   }
-
   return token
   // if (!req.headers.cookie) {
   //   return undefined

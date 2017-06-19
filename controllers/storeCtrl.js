@@ -87,8 +87,18 @@ exports.createStore = async (req, res) => {
 }
 
 exports.getStores = async (req, res) => {
+  const page = req.params.page || 1
+  const limit = 6
+  // 1 * 6 - 6 = page 0 - skip none
+  // 2 * 6 - 6 = page 2 skip the first 6
+  const skip = page * limit - limit
+  console.log('page', page)
+
   try {
-    const stores = await Store.find().sort([['_id', -1]])
+    const stores = await Store.find()
+      .skip(skip)
+      .sort([['_id', -1]])
+      .limit(limit)
     return res.send({ stores })
   } catch (e) {
     return res.status(422).send({ message: e.message })
@@ -97,11 +107,12 @@ exports.getStores = async (req, res) => {
 
 exports.getStore = async (req, res) => {
   const allowedFields = ['_id', 'name']
+  const allowedReviewsFields = ['store', 'text', 'rating', 'author', 'created']
 
   try {
     const store = await Store.findOne({
       slug: req.params.slug
-    }).populate('author', allowedFields)
+    })
 
     const update = authUtils.checkForTokenRefresh(store, null)
 
@@ -205,4 +216,14 @@ exports.heartStore = async (req, res) => {
   const update = authUtils.checkForTokenRefresh(user.hearts, null)
 
   return res.send(update)
+}
+
+exports.getTopStores = async (req, res) => {
+  try {
+    const stores = await Store.getTopStores()
+    const update = authUtils.checkForTokenRefresh(stores, null)
+    res.send(update)
+  } catch (e) {
+    return res.status(422).send({ message: e.message })
+  }
 }

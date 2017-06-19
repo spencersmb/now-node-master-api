@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const storeCtrl = require('../controllers/storeCtrl.js')
+const reviewCtrl = require('../controllers/reviewCtrl')
 const userCtrl = require('../controllers/userCtrl.js')
 const passportServices = require('../controllers/passportCtrl')
 const passport = require('passport')
@@ -13,6 +14,12 @@ router.get('/search', storeCtrl.searchStore)
 router.post('/account/confirm', userCtrl.confirm)
 router.post('/account/resetCheck', userCtrl.resetCheck)
 router.post('/account/reset', userCtrl.updatePassword)
+router.get(
+  '/account/favs',
+  requireAuth,
+  userCtrl.refreshTokens,
+  userCtrl.userMetaData
+)
 
 router.post(
   '/account',
@@ -43,14 +50,27 @@ router.get(
   userCtrl.refreshTokens,
   storeCtrl.getFavStores
 )
+router.get(
+  '/stores/top',
+  requireAuth,
+  userCtrl.refreshTokens,
+  storeCtrl.getTopStores
+)
 router.get('/store/:slug', storeCtrl.getStore)
-router.get('/stores', storeCtrl.getStores)
+router.get('/stores/:page*?', storeCtrl.getStores)
 router.get('/tags/:tag*?', storeCtrl.getTagsList)
 router.post(
   '/update',
   storeCtrl.upload,
   storeCtrl.resize,
   storeCtrl.updateStore
+)
+
+router.post(
+  '/reviews',
+  requireAuth,
+  userCtrl.refreshTokens,
+  reviewCtrl.addReview
 )
 
 // 1. Validate data
