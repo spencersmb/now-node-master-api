@@ -88,18 +88,25 @@ exports.createStore = async (req, res) => {
 
 exports.getStores = async (req, res) => {
   const page = req.params.page || 1
+
   const limit = 6
   // 1 * 6 - 6 = page 0 - skip none
   // 2 * 6 - 6 = page 2 skip the first 6
   const skip = page * limit - limit
-  console.log('page', page)
 
   try {
-    const stores = await Store.find()
+    const storesPromise = Store.find()
       .skip(skip)
-      .sort([['_id', -1]])
       .limit(limit)
-    return res.send({ stores })
+      // .sort({ created: 'desc' })
+      .sort([['_id', -1]])
+
+    const countPromise = Store.count()
+    const [stores, count] = await Promise.all([storesPromise, countPromise])
+    const totalPages = Math.ceil(count / limit)
+    // const update = authUtils.checkForTokenRefresh(store, null)
+
+    return res.send({ stores, count, totalPages })
   } catch (e) {
     return res.status(422).send({ message: e.message })
   }
